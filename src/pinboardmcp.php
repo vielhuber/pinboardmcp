@@ -29,8 +29,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_update')]
-    public function postsUpdate(): array
+    #[McpTool(name: 'updated')]
+    public function updated(): array
     {
         return $this->client->request('posts/update');
     }
@@ -40,8 +40,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_add')]
-    public function postsAdd(
+    #[McpTool(name: 'add')]
+    public function add(
         string $url,
         string $description,
         ?string $extended = null,
@@ -63,8 +63,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_delete')]
-    public function postsDelete(string $url): array
+    #[McpTool(name: 'delete')]
+    public function delete(string $url): array
     {
         return $this->client->request('posts/delete', compact('url'), write: true);
     }
@@ -74,8 +74,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_get')]
-    public function postsGet(?string $tag = null, ?string $dt = null, ?string $url = null, ?bool $meta = null): array
+    #[McpTool(name: 'read')]
+    public function read(?string $tag = null, ?string $dt = null, ?string $url = null, ?bool $meta = null): array
     {
         return $this->client->request('posts/get', compact('tag', 'dt', 'url', 'meta'));
     }
@@ -85,8 +85,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_dates')]
-    public function postsDates(?string $tag = null): array
+    #[McpTool(name: 'dates')]
+    public function dates(?string $tag = null): array
     {
         return $this->client->request('posts/dates', compact('tag'));
     }
@@ -96,8 +96,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_recent')]
-    public function postsRecent(?string $tag = null, #[Schema(minimum: 1, maximum: 100)] ?int $count = null): array
+    #[McpTool(name: 'recent')]
+    public function recent(?string $tag = null, #[Schema(minimum: 1, maximum: 100)] ?int $count = null): array
     {
         return $this->client->request('posts/recent', compact('tag', 'count'));
     }
@@ -107,8 +107,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_all')]
-    public function postsAll(
+    #[McpTool(name: 'get')]
+    public function get(
         #[Schema(description: 'Intersect up to three whitespace-separated tags.')] ?string $tag = null,
         #[Schema(minimum: 0)] ?int $start = null,
         #[Schema(minimum: 1)] ?int $results = null,
@@ -124,8 +124,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'posts_suggest')]
-    public function postsSuggest(string $url): array
+    #[McpTool(name: 'suggest')]
+    public function suggest(string $url): array
     {
         return $this->client->request('posts/suggest', compact('url'));
     }
@@ -135,8 +135,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'tags_get')]
-    public function tagsGet(): array
+    #[McpTool(name: 'tags')]
+    public function tags(): array
     {
         return $this->client->request('tags/get');
     }
@@ -146,8 +146,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'tags_delete')]
-    public function tagsDelete(string $tag): array
+    #[McpTool(name: 'untag')]
+    public function untag(string $tag): array
     {
         return $this->client->request('tags/delete', compact('tag'), write: true);
     }
@@ -157,8 +157,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'tags_rename')]
-    public function tagsRename(string $old, string $new): array
+    #[McpTool(name: 'retag')]
+    public function retag(string $old, string $new): array
     {
         return $this->client->request('tags/rename', compact('old', 'new'), write: true);
     }
@@ -168,8 +168,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'user_secret')]
-    public function userSecret(): array
+    #[McpTool(name: 'secret')]
+    public function secret(): array
     {
         return $this->client->request('user/secret');
     }
@@ -179,8 +179,8 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'user_api_token')]
-    public function userApiToken(): array
+    #[McpTool(name: 'token')]
+    public function token(): array
     {
         return $this->client->request('user/api_token');
     }
@@ -190,22 +190,22 @@ final class pinboardmcp
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'notes_list')]
-    public function notesList(): array
+    #[McpTool(name: 'notes')]
+    public function notes(): array
     {
         return $this->client->request('notes/list');
     }
 
     /**
-     * Read the complete text of a note selected from notes_list.
+     * Read the complete text of a note selected from notes.
      *
      * @return array<mixed>
      */
-    #[McpTool(name: 'notes_get')]
-    public function notesGet(#[Schema(pattern: '^[a-fA-F0-9]+$')] string $id): array
+    #[McpTool(name: 'note')]
+    public function note(#[Schema(pattern: '^[a-fA-F0-9]+$')] string $id): array
     {
         if (preg_match('/^[a-fA-F0-9]+$/D', $id) !== 1) {
-            throw PinboardException::failed('Use a hexadecimal note ID from notes_list.');
+            throw PinboardException::failed('Use a hexadecimal note ID from notes.');
         }
         return $this->client->request('notes/' . $id);
     }
@@ -218,8 +218,8 @@ final class pinboardmcp
      *
      * @return array<string, mixed>
      */
-    #[McpTool(name: 'search_bookmarks')]
-    public function searchBookmarks(
+    #[McpTool(name: 'search')]
+    public function search(
         string $query,
         ?string $tag = null,
         ?string $fromdt = null,
@@ -248,7 +248,7 @@ final class pinboardmcp
         $terms = array_values(array_unique(array_map(fn($part) => $part[1] !== '' ? $part[1] : $part[2], $matches)));
         $requiredTags = preg_split('/\s+/u', mb_strtolower(trim($tag ?? ''), 'UTF-8'), flags: PREG_SPLIT_NO_EMPTY);
         $found = [];
-        foreach ($this->postsAll() as $bookmark) {
+        foreach ($this->get() as $bookmark) {
             $created = strtotime((string) ($bookmark['time'] ?? ''));
             if (($from !== null && $created < $from) || ($to !== null && $created > $to)) {
                 continue;
