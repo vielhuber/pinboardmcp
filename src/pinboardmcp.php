@@ -44,8 +44,8 @@ final class pinboardmcp
     public function add(
         string $url,
         string $description,
-        ?string $extended = null,
-        #[Schema(description: 'Whitespace-separated tags (up to 100).')] ?string $tags = null,
+        #[Schema(minLength: 0)] ?string $extended = null,
+        #[Schema(description: 'Whitespace-separated tags (up to 100).', minLength: 0)] ?string $tags = null,
         ?string $dt = null,
         ?bool $replace = null,
         ?bool $shared = null,
@@ -98,9 +98,9 @@ final class pinboardmcp
     #[McpTool(name: 'update')]
     public function update(
         ?string $url = null,
-        ?string $description = null,
-        ?string $extended = null,
-        ?string $tags = null,
+        #[Schema(minLength: 0)] ?string $description = null,
+        #[Schema(minLength: 0)] ?string $extended = null,
+        #[Schema(minLength: 0)] ?string $tags = null,
         ?string $dt = null,
         ?bool $shared = null,
         ?bool $toread = null,

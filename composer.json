@@ -7,7 +7,7 @@
         "ext-curl": "*",
         "ext-json": "*",
         "ext-mbstring": "*",
-        "vielhuber/simplemcp": "^1.1.4"
+        "vielhuber/simplemcp": "^1.1.7"
     },
     "autoload": {
         "psr-4": {
