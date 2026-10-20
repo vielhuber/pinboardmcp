@@ -1,0 +1,20 @@
+{
+    "name": "vielhuber/pinboardmcp",
+    "description": "Minimal PHP helper and MCP server for the complete Pinboard v1 API.",
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "vielhuber/simplemcp": "^1.1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "vielhuber\\pinboardmcp\\": "src/"
+        }
+    },
+    "bin": [
+        "src/mcp-server.php"
+    ]
+}
