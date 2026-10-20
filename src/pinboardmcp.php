@@ -263,7 +263,7 @@ final class pinboardmcp
                 'url' => ($bookmark['href'] ?? '') . "\n" . rawurldecode((string) ($bookmark['href'] ?? '')),
                 'description' => (string) ($bookmark['extended'] ?? '')
             ];
-            $fields = array_map(fn($value) => mb_convert_case($value, MB_CASE_FOLD, 'UTF-8'), $fields);
+            $fields = array_map(static fn($value) => mb_convert_case($value, MB_CASE_FOLD, 'UTF-8'), $fields);
             $bookmarkTags = preg_split('/\s+/u', $fields['tags'], flags: PREG_SPLIT_NO_EMPTY);
             if (array_diff($requiredTags, $bookmarkTags) !== []) {
                 continue;
