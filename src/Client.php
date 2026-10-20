@@ -5,7 +5,7 @@ namespace vielhuber\pinboardmcp;
 
 final class Client
 {
-    public const HASH_PATTERN = '^[a-fA-F0-9]{32}$';
+    public const ID_PATTERN = '^[a-fA-F0-9]{32}$';
 
     private const CACHE_SECONDS = 300;
     private const MAX_ATTEMPTS = 3;
@@ -177,28 +177,28 @@ final class Client
     /**
      * Resolve one bookmark identifier without guessing URL equivalences.
      */
-    public function resolveUrl(?string $url, ?string $hash): ?string
+    public function resolveUrl(?string $url, ?string $id): ?string
     {
-        if ($url !== null && $hash !== null) {
-            throw PinboardException::failed('Provide either url or hash, not both.');
+        if ($url !== null && $id !== null) {
+            throw PinboardException::failed('Provide either url or id, not both.');
         }
         if ($url !== null && trim($url) === '') {
             throw PinboardException::failed('Provide a nonempty bookmark URL.');
         }
-        if ($hash === null) {
+        if ($id === null) {
             return $url;
         }
-        if (preg_match('/' . self::HASH_PATTERN . '/D', $hash) !== 1) {
-            throw PinboardException::failed('Use the 32-character bookmark hash returned by Pinboard.');
+        if (preg_match('/' . self::ID_PATTERN . '/D', $id) !== 1) {
+            throw PinboardException::failed('Use the 32-character bookmark id returned by Pinboard.');
         }
-        $hash = strtolower($hash);
+        $id = strtolower($id);
         $path = $this->directory . '/urls.json';
-        $resolvedUrl = $this->readJson($path)[$hash] ?? null;
+        $resolvedUrl = $this->readJson($path)[$id] ?? null;
         if ($resolvedUrl === null) {
             $this->request('posts/all');
-            $resolvedUrl = $this->readJson($path)[$hash] ?? null;
+            $resolvedUrl = $this->readJson($path)[$id] ?? null;
         }
-        return $resolvedUrl ?? throw PinboardException::failed('Bookmark hash not found.', 404);
+        return $resolvedUrl ?? throw PinboardException::failed('Bookmark id not found.', 404);
     }
 
     /**

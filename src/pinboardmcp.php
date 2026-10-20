@@ -36,9 +36,7 @@ final class pinboardmcp
     }
 
     /**
-     * Save a bookmark; description is the title and extended is its description in v1.
-     *
-     * @return array<mixed>
+     * Save and read back the bookmark; description is the title and extended its description.
      */
     #[McpTool(name: 'add')]
     public function add(
@@ -50,33 +48,45 @@ final class pinboardmcp
         ?bool $replace = null,
         ?bool $shared = null,
         ?bool $toread = null
-    ): array {
-        return $this->client->request(
+    ): Bookmark {
+        $this->client->request(
             'posts/add',
             compact('url', 'description', 'extended', 'tags', 'dt', 'replace', 'shared', 'toread'),
             write: true
         );
+        try {
+            $bookmarks = $this->client->request('posts/get', compact('url'), refresh: true)['posts'];
+        } catch (PinboardException $exception) {
+            throw PinboardException::failed(
+                'Bookmark saved; read before retrying. ' . $exception->getMessage(),
+                $exception->getCode()
+            );
+        }
+        if (count($bookmarks) !== 1) {
+            throw PinboardException::failed('Bookmark saved but readback failed; read before retrying.');
+        }
+        return new Bookmark($bookmarks[0]);
     }
 
     /**
-     * Permanently delete the bookmark identified by exactly one URL or hash.
+     * Permanently delete the bookmark identified by exactly one URL or ID.
      *
      * @return array<mixed>
      */
     #[McpTool(name: 'delete')]
-    public function delete(?string $url = null, #[Schema(pattern: Client::HASH_PATTERN)] ?string $hash = null): array
+    public function delete(?string $url = null, #[Schema(pattern: Client::ID_PATTERN)] ?string $id = null): array
     {
-        $url = $this->client->resolveUrl($url, $hash);
+        $url = $this->client->resolveUrl($url, $id);
         if ($url === null) {
-            throw PinboardException::failed('Provide a bookmark url or hash.');
+            throw PinboardException::failed('Provide a bookmark url or id.');
         }
         return $this->client->request('posts/delete', compact('url'), write: true);
     }
 
     /**
-     * Read by URL or hash, or by date; without these, Pinboard uses the most recent day.
+     * Return one bookmark or null by URL/ID, or a flat list for date/tag queries.
      *
-     * @return array<mixed>
+     * @return Bookmark|list<Bookmark>|null
      */
     #[McpTool(name: 'read')]
     public function read(
@@ -84,16 +94,25 @@ final class pinboardmcp
         ?string $dt = null,
         ?string $url = null,
         ?bool $meta = null,
-        #[Schema(pattern: Client::HASH_PATTERN)] ?string $hash = null
-    ): array {
-        $url = $this->client->resolveUrl($url, $hash);
-        return $this->client->request('posts/get', compact('tag', 'dt', 'url', 'meta'));
+        #[Schema(pattern: Client::ID_PATTERN)] ?string $id = null
+    ): Bookmark|array|null {
+        try {
+            $url = $this->client->resolveUrl($url, $id);
+        } catch (PinboardException $exception) {
+            if ($exception->getCode() !== 404) {
+                throw $exception;
+            }
+            return null;
+        }
+        $bookmarks = array_map(
+            static fn(array $bookmark): Bookmark => new Bookmark($bookmark),
+            $this->client->request('posts/get', compact('tag', 'dt', 'url', 'meta'))['posts']
+        );
+        return $url === null ? $bookmarks : $bookmarks[0] ?? null;
     }
 
     /**
-     * Update by URL or hash, reading fresh values and preserving every omitted field.
-     *
-     * @return array<mixed>
+     * Update by URL or ID, reading fresh values and preserving every omitted field.
      */
     #[McpTool(name: 'update')]
     public function update(
@@ -104,11 +123,11 @@ final class pinboardmcp
         ?string $dt = null,
         ?bool $shared = null,
         ?bool $toread = null,
-        #[Schema(pattern: Client::HASH_PATTERN)] ?string $hash = null
-    ): array {
-        $url = $this->client->resolveUrl($url, $hash);
+        #[Schema(pattern: Client::ID_PATTERN)] ?string $id = null
+    ): Bookmark {
+        $url = $this->client->resolveUrl($url, $id);
         if ($url === null) {
-            throw PinboardException::failed('Provide a bookmark url or hash.');
+            throw PinboardException::failed('Provide a bookmark url or id.');
         }
         $bookmarks = $this->client->request('posts/get', compact('url'), refresh: true)['posts'];
         if (count($bookmarks) !== 1) {
@@ -141,18 +160,21 @@ final class pinboardmcp
     /**
      * Read recent bookmarks with Pinboard's one-minute endpoint cooldown.
      *
-     * @return array<mixed>
+     * @return list<Bookmark>
      */
     #[McpTool(name: 'recent')]
     public function recent(?string $tag = null, #[Schema(minimum: 1, maximum: 100)] ?int $count = null): array
     {
-        return $this->client->request('posts/recent', compact('tag', 'count'));
+        return array_map(
+            static fn(array $bookmark): Bookmark => new Bookmark($bookmark),
+            $this->client->request('posts/recent', compact('tag', 'count'))['posts']
+        );
     }
 
     /**
      * Retrieve every bookmark by default, without a date-range cap; reads are cached for five minutes.
      *
-     * @return array<mixed>
+     * @return list<Bookmark>
      */
     #[McpTool(name: 'get')]
     public function get(
@@ -163,7 +185,10 @@ final class pinboardmcp
         ?string $todt = null,
         #[Schema(minimum: 0, maximum: 1)] ?int $meta = null
     ): array {
-        return $this->client->request('posts/all', compact('tag', 'start', 'results', 'fromdt', 'todt', 'meta'));
+        return array_map(
+            static fn(array $bookmark): Bookmark => new Bookmark($bookmark),
+            $this->client->request('posts/all', compact('tag', 'start', 'results', 'fromdt', 'todt', 'meta'))
+        );
     }
 
     /**
@@ -300,15 +325,15 @@ final class pinboardmcp
         );
         $found = [];
         foreach ($this->get() as $bookmark) {
-            $created = strtotime((string) ($bookmark['time'] ?? ''));
+            $created = strtotime($bookmark->time);
             if (($from !== null && $created < $from) || ($to !== null && $created > $to)) {
                 continue;
             }
             $fields = [
-                'title' => (string) ($bookmark['description'] ?? ''),
-                'tags' => (string) ($bookmark['tags'] ?? ''),
-                'url' => ($bookmark['href'] ?? '') . "\n" . rawurldecode((string) ($bookmark['href'] ?? '')),
-                'description' => (string) ($bookmark['extended'] ?? '')
+                'title' => $bookmark->description,
+                'tags' => $bookmark->tags,
+                'url' => $bookmark->url . "\n" . rawurldecode($bookmark->url),
+                'description' => $bookmark->extended
             ];
             $fields = array_map(static fn($value) => mb_convert_case($value, MB_CASE_FOLD, 'UTF-8'), $fields);
             $bookmarkTags = preg_split('/\s+/u', $fields['tags'], flags: PREG_SPLIT_NO_EMPTY);
@@ -339,13 +364,13 @@ final class pinboardmcp
             if ($matchedTerms === 0 || ($match === 'all' && $matchedTerms !== count($terms))) {
                 continue;
             }
-            $found[] = $bookmark + ['score' => $score, 'matched_fields' => array_keys($matchedFields)];
+            $found[] = (array) $bookmark + ['score' => $score, 'matched_fields' => array_keys($matchedFields)];
         }
         usort(
             $found,
             fn($left, $right) => $right['score'] <=> $left['score'] ?:
             strcmp($right['time'] ?? '', $left['time'] ?? '') ?:
-            strcmp($left['href'] ?? '', $right['href'] ?? '')
+            strcmp($left['url'], $right['url'])
         );
         $total = count($found);
         return [
