@@ -14,13 +14,12 @@ use vielhuber\simplemcp\simplemcp;
 $directory = getcwd() ?: dirname(__DIR__);
 $envPath = $directory . '/.env';
 if (!is_file($envPath)) {
-    $handle = fopen($envPath, 'x');
+    $handle = fopen($envPath, 'c');
     if ($handle === false) {
         fwrite(STDERR, 'Cannot create the Pinboard MCP environment file.' . PHP_EOL);
         exit(1);
     }
     chmod($envPath, 0600);
-    fwrite($handle, "MCP_TOKEN=\nPINBOARD_API_TOKEN=\n");
     fclose($handle);
 }
 
