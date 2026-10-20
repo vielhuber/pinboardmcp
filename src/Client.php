@@ -57,13 +57,6 @@ final class Client
                 $this->fetchedAt = $cached['fetched_at'];
                 return $cached['response'];
             }
-            if ($write) {
-                foreach (glob($this->directory . '/cache-*.json') ?: [] as $path) {
-                    if (!unlink($path)) {
-                        throw PinboardException::failed('Cannot invalidate the Pinboard cache.');
-                    }
-                }
-            }
             for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
                 $wait = max(
                     0,
@@ -79,6 +72,13 @@ final class Client
                 }
                 if ($wait > 0) {
                     usleep((int) ceil($wait * 1_000_000));
+                }
+                if ($write && $attempt === 0) {
+                    foreach (glob($this->directory . '/cache-*.json') ?: [] as $path) {
+                        if (!unlink($path)) {
+                            throw PinboardException::failed('Cannot invalidate the Pinboard cache.');
+                        }
+                    }
                 }
                 $state['last_request'] = microtime(true);
                 $state['methods'][$method] =
