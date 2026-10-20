@@ -15,10 +15,11 @@ use vielhuber\pinboardmcp\pinboardmcp;
 
 $pinboard = new pinboardmcp('username:token');
 $pinboard->get();
-$pinboard->read(url: 'https://example.com/');
 $pinboard->search('php');
 $pinboard->add(url: 'https://example.com/', description: 'example', shared: false, replace: false);
-$pinboard->delete('https://example.com/');
+$hash = $pinboard->read(url: 'https://example.com/')['posts'][0]['hash'];
+$pinboard->update(hash: $hash, description: 'new title');
+$pinboard->delete(hash: $hash);
 $pinboard->updated();
 $pinboard->dates();
 $pinboard->recent();
@@ -31,6 +32,8 @@ $pinboard->token();
 $pinboard->notes();
 $pinboard->note('0123456789abcdef');
 ```
+
+`read`, `update` and `delete` accept either `url` or the `hash` returned by pinboard. `update` preserves omitted fields.
 
 get your token from [settings → password](https://pinboard.in/settings/password/).
 

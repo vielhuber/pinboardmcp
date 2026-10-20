@@ -5,6 +5,8 @@ namespace vielhuber\pinboardmcp;
 
 final class Client
 {
+    public const HASH_PATTERN = '^[a-fA-F0-9]{32}$';
+
     private const CACHE_SECONDS = 300;
     private const MAX_ATTEMPTS = 3;
     private const MAX_WAIT_SECONDS = 30;
@@ -30,7 +32,7 @@ final class Client
      * @param array<string, string|int|bool|null> $parameters
      * @return array<mixed>
      */
-    public function request(string $method, array $parameters = [], bool $write = false): array
+    public function request(string $method, array $parameters = [], bool $write = false, bool $refresh = false): array
     {
         if (!is_dir($this->directory) && !mkdir($this->directory, 0700, true) && !is_dir($this->directory)) {
             throw PinboardException::failed('Cannot create the private Pinboard cache directory.');
@@ -50,11 +52,12 @@ final class Client
             $parameters = array_map(fn($value) => is_bool($value) ? ($value ? 'yes' : 'no') : $value, $parameters);
             ksort($parameters);
             $cachePath = $this->directory . '/cache-' . hash('sha256', $method . json_encode($parameters)) . '.json';
-            $cached = $write ? null : $this->readJson($cachePath);
+            $cached = $write || $refresh ? null : $this->readJson($cachePath);
             $statePath = $this->directory . '/state.json';
             $state = $this->readJson($statePath) ?? [];
             if ($cached !== null && time() - $cached['fetched_at'] < self::CACHE_SECONDS) {
                 $this->fetchedAt = $cached['fetched_at'];
+                $this->rememberUrls($method, $cached['response']);
                 return $cached['response'];
             }
             for ($attempt = 0; $attempt < self::MAX_ATTEMPTS; $attempt++) {
@@ -158,6 +161,7 @@ final class Client
                     );
                 }
                 $this->fetchedAt = time();
+                $this->rememberUrls($method, $decoded);
                 if (!$write && !str_starts_with($method, 'user/')) {
                     $this->writeJson($cachePath, ['fetched_at' => $this->fetchedAt, 'response' => $decoded]);
                 }
@@ -167,6 +171,54 @@ final class Client
         } finally {
             flock($lock, LOCK_UN);
             fclose($lock);
+        }
+    }
+
+    /**
+     * Resolve one bookmark identifier without guessing URL equivalences.
+     */
+    public function resolveUrl(?string $url, ?string $hash): ?string
+    {
+        if ($url !== null && $hash !== null) {
+            throw PinboardException::failed('Provide either url or hash, not both.');
+        }
+        if ($url !== null && trim($url) === '') {
+            throw PinboardException::failed('Provide a nonempty bookmark URL.');
+        }
+        if ($hash === null) {
+            return $url;
+        }
+        if (preg_match('/' . self::HASH_PATTERN . '/D', $hash) !== 1) {
+            throw PinboardException::failed('Use the 32-character bookmark hash returned by Pinboard.');
+        }
+        $hash = strtolower($hash);
+        $path = $this->directory . '/urls.json';
+        $resolvedUrl = $this->readJson($path)[$hash] ?? null;
+        if ($resolvedUrl === null) {
+            $this->request('posts/all');
+            $resolvedUrl = $this->readJson($path)[$hash] ?? null;
+        }
+        return $resolvedUrl ?? throw PinboardException::failed('Bookmark hash not found.', 404);
+    }
+
+    /**
+     * Retain exact URLs across cache invalidation and process restarts.
+     *
+     * @param array<mixed> $response
+     */
+    private function rememberUrls(string $method, array $response): void
+    {
+        if (!in_array($method, ['posts/all', 'posts/get', 'posts/recent'], strict: true)) {
+            return;
+        }
+        $path = $this->directory . '/urls.json';
+        $urls = $this->readJson($path) ?? [];
+        $updated = $urls;
+        foreach ($method === 'posts/all' ? $response : $response['posts'] as $bookmark) {
+            $updated[strtolower($bookmark['hash'])] = $bookmark['href'];
+        }
+        if ($updated !== $urls) {
+            $this->writeJson($path, $updated);
         }
     }
 

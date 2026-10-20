@@ -59,25 +59,72 @@ final class pinboardmcp
     }
 
     /**
-     * Permanently delete only the bookmark at the explicitly requested URL.
+     * Permanently delete the bookmark identified by exactly one URL or hash.
      *
      * @return array<mixed>
      */
     #[McpTool(name: 'delete')]
-    public function delete(string $url): array
+    public function delete(?string $url = null, #[Schema(pattern: Client::HASH_PATTERN)] ?string $hash = null): array
     {
+        $url = $this->client->resolveUrl($url, $hash);
+        if ($url === null) {
+            throw PinboardException::failed('Provide a bookmark url or hash.');
+        }
         return $this->client->request('posts/delete', compact('url'), write: true);
     }
 
     /**
-     * Read a URL or one day's bookmarks; without either, Pinboard uses the most recent day.
+     * Read by URL or hash, or by date; without these, Pinboard uses the most recent day.
      *
      * @return array<mixed>
      */
     #[McpTool(name: 'read')]
-    public function read(?string $tag = null, ?string $dt = null, ?string $url = null, ?bool $meta = null): array
-    {
+    public function read(
+        ?string $tag = null,
+        ?string $dt = null,
+        ?string $url = null,
+        ?bool $meta = null,
+        #[Schema(pattern: Client::HASH_PATTERN)] ?string $hash = null
+    ): array {
+        $url = $this->client->resolveUrl($url, $hash);
         return $this->client->request('posts/get', compact('tag', 'dt', 'url', 'meta'));
+    }
+
+    /**
+     * Update by URL or hash, reading fresh values and preserving every omitted field.
+     *
+     * @return array<mixed>
+     */
+    #[McpTool(name: 'update')]
+    public function update(
+        ?string $url = null,
+        ?string $description = null,
+        ?string $extended = null,
+        ?string $tags = null,
+        ?string $dt = null,
+        ?bool $shared = null,
+        ?bool $toread = null,
+        #[Schema(pattern: Client::HASH_PATTERN)] ?string $hash = null
+    ): array {
+        $url = $this->client->resolveUrl($url, $hash);
+        if ($url === null) {
+            throw PinboardException::failed('Provide a bookmark url or hash.');
+        }
+        $bookmarks = $this->client->request('posts/get', compact('url'), refresh: true)['posts'];
+        if (count($bookmarks) !== 1) {
+            throw PinboardException::failed('Bookmark not found.', 404);
+        }
+        $bookmark = $bookmarks[0];
+        return $this->add(
+            url: $bookmark['href'],
+            description: $description ?? $bookmark['description'],
+            extended: $extended ?? $bookmark['extended'],
+            tags: $tags ?? $bookmark['tags'],
+            dt: $dt ?? $bookmark['time'],
+            replace: true,
+            shared: $shared ?? $bookmark['shared'] === 'yes',
+            toread: $toread ?? $bookmark['toread'] === 'yes'
+        );
     }
 
     /**
