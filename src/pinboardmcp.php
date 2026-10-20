@@ -244,9 +244,13 @@ final class pinboardmcp
         if ($from === false || $to === false || ($from !== null && $to !== null && $from > $to)) {
             throw PinboardException::failed('Provide valid dates in chronological order.');
         }
-        preg_match_all('/"([^"]+)"|(\S+)/u', mb_strtolower($query, 'UTF-8'), $matches, PREG_SET_ORDER);
+        preg_match_all('/"([^"]+)"|(\S+)/u', mb_convert_case($query, MB_CASE_FOLD, 'UTF-8'), $matches, PREG_SET_ORDER);
         $terms = array_values(array_unique(array_map(fn($part) => $part[1] !== '' ? $part[1] : $part[2], $matches)));
-        $requiredTags = preg_split('/\s+/u', mb_strtolower(trim($tag ?? ''), 'UTF-8'), flags: PREG_SPLIT_NO_EMPTY);
+        $requiredTags = preg_split(
+            '/\s+/u',
+            mb_convert_case(trim($tag ?? ''), MB_CASE_FOLD, 'UTF-8'),
+            flags: PREG_SPLIT_NO_EMPTY
+        );
         $found = [];
         foreach ($this->get() as $bookmark) {
             $created = strtotime((string) ($bookmark['time'] ?? ''));
@@ -254,11 +258,12 @@ final class pinboardmcp
                 continue;
             }
             $fields = [
-                'title' => mb_strtolower((string) ($bookmark['description'] ?? ''), 'UTF-8'),
-                'tags' => mb_strtolower((string) ($bookmark['tags'] ?? ''), 'UTF-8'),
-                'url' => mb_strtolower(rawurldecode((string) ($bookmark['href'] ?? '')), 'UTF-8'),
-                'description' => mb_strtolower((string) ($bookmark['extended'] ?? ''), 'UTF-8')
+                'title' => (string) ($bookmark['description'] ?? ''),
+                'tags' => (string) ($bookmark['tags'] ?? ''),
+                'url' => ($bookmark['href'] ?? '') . "\n" . rawurldecode((string) ($bookmark['href'] ?? '')),
+                'description' => (string) ($bookmark['extended'] ?? '')
             ];
+            $fields = array_map(fn($value) => mb_convert_case($value, MB_CASE_FOLD, 'UTF-8'), $fields);
             $bookmarkTags = preg_split('/\s+/u', $fields['tags'], flags: PREG_SPLIT_NO_EMPTY);
             if (array_diff($requiredTags, $bookmarkTags) !== []) {
                 continue;
