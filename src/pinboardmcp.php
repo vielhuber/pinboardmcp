@@ -67,16 +67,14 @@ final class pinboardmcp
         }
         $bookmark = new Bookmark($bookmarks[0]);
         $differentFields = [];
-        foreach (
-            [
-                'url' => $url,
-                'description' => $description,
-                'extended' => $extended,
-                'shared' => $shared,
-                'toread' => $toread
-            ]
-            as $field => $expectedValue
-        ) {
+        $expectedFields = [
+            'url' => $url,
+            'description' => $description,
+            'extended' => $extended,
+            'shared' => $shared,
+            'toread' => $toread
+        ];
+        foreach ($expectedFields as $field => $expectedValue) {
             if ($expectedValue === null || $bookmark->$field === $expectedValue) {
                 continue;
             }
