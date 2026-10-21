@@ -118,6 +118,18 @@ final class Client
                 $curlError = curl_errno($handle);
                 $headers = $response === false ? '' : substr($response, 0, $headerSize);
                 $body = $response === false ? '' : substr($response, $headerSize);
+                preg_match(
+                    '~^[a-z0-9.+-]+/[a-z0-9.+-]+~i',
+                    (string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE),
+                    $contentType
+                );
+                $responseDetails =
+                    ($status > 0 ? 'HTTP ' . $status : 'cURL ' . $curlError) .
+                    ', Content-Type: ' .
+                    ($contentType[0] ?? 'unknown') .
+                    ', ' .
+                    strlen($body) .
+                    ' bytes';
                 $retryable = $status === 429 || (!$write && ($response === false || $status >= 500));
                 if ($retryable) {
                     $delay = 3 * 2 ** $attempt;
@@ -137,7 +149,7 @@ final class Client
                 if ($response === false || $status < 200 || $status >= 300) {
                     throw PinboardException::failed(
                         'Pinboard request failed (' .
-                            ($status > 0 ? 'HTTP ' . $status : 'cURL ' . $curlError) .
+                            $responseDetails .
                             ').' .
                             ($write ? ' Read the current state before retrying an uncertain write.' : ''),
                         $status
@@ -147,7 +159,9 @@ final class Client
                     $decoded = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
                 } catch (\JsonException) {
                     throw PinboardException::failed(
-                        'Pinboard returned invalid JSON.' .
+                        'Pinboard returned invalid JSON (' .
+                            $responseDetails .
+                            ').' .
                             ($write ? ' The write may have succeeded; read before retrying.' : '')
                     );
                 }
