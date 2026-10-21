@@ -36,7 +36,7 @@ final class pinboardmcp
     }
 
     /**
-     * Save and read back the bookmark; description is the title and extended its description.
+     * Save and verify supplied fields; description is the title and extended its description.
      */
     #[McpTool(name: 'add')]
     public function add(
@@ -65,7 +65,41 @@ final class pinboardmcp
         if (count($bookmarks) !== 1) {
             throw PinboardException::failed('Bookmark saved but readback failed; read before retrying.');
         }
-        return new Bookmark($bookmarks[0]);
+        $bookmark = new Bookmark($bookmarks[0]);
+        $differentFields = [];
+        foreach (
+            [
+                'url' => $url,
+                'description' => $description,
+                'extended' => $extended,
+                'shared' => $shared,
+                'toread' => $toread
+            ]
+            as $field => $expectedValue
+        ) {
+            if ($expectedValue === null || $bookmark->$field === $expectedValue) {
+                continue;
+            }
+            $differentFields[] = $field;
+        }
+        if ($tags !== null) {
+            $expectedTags = preg_split('/\s+/u', trim($tags), flags: PREG_SPLIT_NO_EMPTY);
+            $actualTags = preg_split('/\s+/u', trim($bookmark->tags), flags: PREG_SPLIT_NO_EMPTY);
+            if (array_diff($expectedTags, $actualTags) !== [] || array_diff($actualTags, $expectedTags) !== []) {
+                $differentFields[] = 'tags';
+            }
+        }
+        if ($dt !== null && strtotime($dt) !== strtotime($bookmark->time)) {
+            $differentFields[] = 'time';
+        }
+        if ($differentFields !== []) {
+            throw PinboardException::failed(
+                'Bookmark saved but readback differs for: ' .
+                    implode(', ', $differentFields) .
+                    '. Read before retrying; do not repeat the write blindly.'
+            );
+        }
+        return $bookmark;
     }
 
     /**
