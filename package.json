@@ -2,6 +2,7 @@
     "private": true,
     "devDependencies": {
         "prettier": ">=3",
-        "@prettier/plugin-php": ">=0.25"
-    }
+        "@prettier/plugin-php": ">=0.26"
+    },
+    "version": "2.0.4"
 }
